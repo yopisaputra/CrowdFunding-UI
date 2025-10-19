@@ -43,6 +43,8 @@ export default function Home() {
   const [progressPercentage, setProgressPercentage] = useState(0);
   const [leaderboard, setLeaderboard] = useState<TopDonor[]>([]);
   const [donationHistory, setDonationHistory] = useState<DonationRecord[]>([]);
+  // NEW: State for the countdown timer
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   const contract = useMemo(() => {
     if (!isConnected || address === "-") return null;
@@ -157,6 +159,35 @@ export default function Home() {
     fetchData();
   }, [contract]);
 
+  // NEW: useEffect for the countdown timer
+  useEffect(() => {
+    if (!deadline || isEnded) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+    }
+
+    const timer = setInterval(() => {
+        const now = new Date().getTime();
+        const deadlineTime = deadline * 1000;
+        const difference = deadlineTime - now;
+
+        if (difference <= 0) {
+            clearInterval(timer);
+            setIsEnded(true); // Manually trigger ended state
+            setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        } else {
+            setTimeLeft({
+                days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+                hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+                minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
+                seconds: Math.floor((difference % (1000 * 60)) / 1000),
+            });
+        }
+    }, 1000);
+
+    return () => clearInterval(timer); // Cleanup on component unmount
+  }, [deadline, isEnded]);
+
   const formattedPercentage = progressPercentage.toFixed(2);
 
   return (
@@ -190,6 +221,27 @@ export default function Home() {
             <div className="text-center text-gray-400 text-sm">
                 {deadline > 0 ? `Ending on ${new Date(deadline * 1000).toLocaleString()}` : "Not initialized"}
             </div>
+            {/* NEW: Countdown Timer Display */}
+            {!isEnded && deadline > 0 && (
+                <div className="flex justify-center gap-x-4 sm:gap-x-6 mt-2 tabular-nums">
+                    <div className="text-center">
+                        <span className="text-2xl font-bold">{String(timeLeft.days).padStart(2, '0')}</span>
+                        <span className="block text-xs text-gray-400">DAYS</span>
+                    </div>
+                    <div className="text-center">
+                        <span className="text-2xl font-bold">{String(timeLeft.hours).padStart(2, '0')}</span>
+                        <span className="block text-xs text-gray-400">HOURS</span>
+                    </div>
+                    <div className="text-center">
+                        <span className="text-2xl font-bold">{String(timeLeft.minutes).padStart(2, '0')}</span>
+                        <span className="block text-xs text-gray-400">MINUTES</span>
+                    </div>
+                    <div className="text-center">
+                        <span className="text-2xl font-bold">{String(timeLeft.seconds).padStart(2, '0')}</span>
+                        <span className="block text-xs text-gray-400">SECONDS</span>
+                    </div>
+                </div>
+            )}
              <div className="flex flex-row gap-x-4 mt-2 justify-center">
                 {isEnded && <p className="text-red-500 font-semibold">Campaign Ended</p>}
                 {isGoalReached && <p className="text-green-500 font-semibold">Goal Reached!</p>}
